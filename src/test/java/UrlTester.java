@@ -102,8 +102,8 @@ public final class UrlTester {
 
 	public static void runAllTests() throws IOException, Failure {
 		runUnitTests();
-		UrlTester.forResource("/tests.md", 0).run();
-		UrlTester.forResource("/javaspecific.md", 0).run();
+		UrlTester.forResource("/org/monetdb/mcl/net/tests.md", 0).run();
+		UrlTester.forResource("/org/monetdb/mcl/net/javaspecific.md", 0).run();
 	}
 
 	public static void runUnitTests() {

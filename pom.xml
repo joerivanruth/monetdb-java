@@ -52,6 +52,28 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
+    <!-- with this we can omit the version numbers of junit stuff -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>5.11.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
 
     <build>
        <resources>
@@ -122,7 +144,11 @@
 
         <plugins>
 
-            <!-- configure jar builder to set a main class -->
+            <!-- Configure jar builder
+                 1. to set a main class
+                 2. to create a tests jar
+                 Note that the tests jar does not contain the dependencies yet, we will use the assembly plugin for that
+            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -133,6 +159,21 @@
                         </manifest>
                     </archive>
                 </configuration>
+                <executions>
+                    <!-- There is a default execution that creates the regular jar, this one creates the test jar -->
+                    <execution>
+                        <id>make-test-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <excludes>
+                                <exclude>SQLcopyinto.class</exclude>
+                                <exclude>Test_C*.class</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
