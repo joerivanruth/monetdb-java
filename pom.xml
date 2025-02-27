@@ -73,6 +73,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- this serves as the main class for the jdbctests.jar -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-console</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -139,6 +146,12 @@
                     <version>3.11.2</version>
                 </plugin>
 
+                <plugin>
+                    <groupId>com.coderplus.maven.plugins</groupId>
+                    <artifactId>copy-rename-maven-plugin</artifactId>
+                    <version>1.0.1</version>
+                </plugin>
+
             </plugins>
         </pluginManagement>
 
@@ -171,6 +184,56 @@
                                 <exclude>SQLcopyinto.class</exclude>
                                 <exclude>Test_C*.class</exclude>
                             </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate a jar that includes all dependencies such as Junit.
+                 The result gets a name like monetdb-jdbc-12.1-SNAPSHOT-test-jar-with-deps.jar.
+                 This can be changed by uncommenting the <finalName> and <appendAssemblyId> settings
+                 but that causes a warning that cannot be suppressed.
+                 So instead we will use yet another plugin to rename the thing.
+             -->
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                     <!-- <finalName>jdbctests</finalName> -->
+                     <!-- <appendAssemblyId>false</appendAssemblyId> -->
+                    <descriptors>
+                        <descriptor>src/test/assembly/test-jar-with-deps.xml</descriptor>
+                    </descriptors>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.junit.platform.console.ConsoleLauncher</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-tests-jar-with-deps</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Rename the jar-with-deps created above -->
+            <plugin>
+                <groupId>com.coderplus.maven.plugins</groupId>
+                <artifactId>copy-rename-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>rename-jar-with-deps</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>rename</goal>
+                        </goals>
+                        <configuration>
+                            <sourceFile>${project.build.directory}/${build.finalName}-test-jar-with-deps.jar</sourceFile>
+                            <destinationFile>${project.build.directory}/jdbctests.jar</destinationFile>
                         </configuration>
                     </execution>
                 </executions>
@@ -212,7 +275,6 @@
                 nexus-staging-maven-plugin
                 maven-release-plugin
                 maven-gpg-plugin
-
             -->
 
         </plugins>
