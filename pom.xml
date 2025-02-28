@@ -232,7 +232,7 @@
                             <goal>rename</goal>
                         </goals>
                         <configuration>
-                            <sourceFile>${project.build.directory}/${build.finalName}-test-jar-with-deps.jar</sourceFile>
+                            <sourceFile>${project.build.directory}/${project.build.finalName}-test-jar-with-deps.jar</sourceFile>
                             <destinationFile>${project.build.directory}/jdbctests.jar</destinationFile>
                         </configuration>
                     </execution>
