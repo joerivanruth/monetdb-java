@@ -268,6 +268,22 @@
                 </configuration>
             </plugin>
 
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- set this explicitly because JDBC_API_Tester does not match the default patterns -->
+                    <includes>
+                        <include>JDBC_API_Tester.java</include>
+                        <include>**/Test*.java</include>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*TestCase.java</include>
+                    </includes>
+                    <!-- skip the slow tests by default -->
+                    <groups>!slow</groups>
+                </configuration>
+            </plugin>
+
             <!--
                 Temporarily dropped the following plugins until I've figured out
                 how they work and if we still need them

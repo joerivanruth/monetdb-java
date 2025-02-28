@@ -18,9 +18,12 @@ import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.monetdb.jdbc.MonetConnection;
 import org.monetdb.jdbc.types.INET;
 import org.monetdb.jdbc.types.URL;
+import org.monetdb.testinfra.Config;
 
 /**
  * class to test JDBC Driver API methods and behavior of MonetDB server.
@@ -37,31 +40,48 @@ import org.monetdb.jdbc.types.URL;
  * @author Martin van Dinther
  * @version 0.3
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Tag("api")
 public final class JDBC_API_Tester {
-	private StringBuilder sb;	// buffer to collect the test output
-	private Connection con;		// main connection shared by all tests
-	final private int dbmsMajorVersion;
-	final private int dbmsMinorVersion;
-	final private boolean isPostDec2023;	// flag to support version specific output
+	// This is where we gather test output which is then verified
+	// in compareExpectedOutput()
+	private StringBuilder sb = new StringBuilder(sbInitLen);
 	private boolean foundDifferences = false;
+
+	// Connection state set in connect()
+	private String jdbcUrl;
+	private Connection con;		// main connection shared by all tests
+	private int dbmsMajorVersion;
+	private int dbmsMinorVersion;
+	private boolean isPostDec2023;	// flag to support version specific output
+	private boolean skipMALoutput = false;
 
 	final private static int sbInitLen = 5468; // max needed size of sb
 
-	/**
-	 * constructor
-	 * @param con_ an active connection
-	 * @throws SQLException if a connection or database access error occurs
-	 */
-	JDBC_API_Tester(Connection con_) throws SQLException {
-		this.con = con_;
+	JDBC_API_Tester() {
 		sb = new StringBuilder(sbInitLen);
+	}
 
-		DatabaseMetaData dbmd = con_.getMetaData();
+	private void connect(String url) throws SQLException {
+		jdbcUrl = url;
+		con = DriverManager.getConnection(jdbcUrl);
+		DatabaseMetaData dbmd = con.getMetaData();
 		dbmsMajorVersion = dbmd.getDatabaseMajorVersion();
 		dbmsMinorVersion = dbmd.getDatabaseMinorVersion();
 		// from version 11.50 on, the MonetDB server returns different metadata for
 		// integer digits (1 less) and for clob and char columns (now return varchar).
 		isPostDec2023 = versionIsAtLeast(11, 50);
+	}
+
+	@BeforeAll
+	public void openConnection() throws SQLException {
+		String url = Config.getServerURL();
+		connect(url);
+	}
+
+	@AfterAll
+	public void closeConnection() {
+		closeConx(con);
 	}
 
 	/**
@@ -76,36 +96,35 @@ public final class JDBC_API_Tester {
 		}
 
 		final String con_URL = args[0];
-		final boolean skipMALoutput = (args.length >= 2) ? args[1].equals("-skipMALoutput") : false;
-		// System.err.println("skipMALoutput = " + skipMALoutput);
 
 		// Test this before trying to connect
 		UrlTester.runAllTests();
 
-		final Connection conn = DriverManager.getConnection(con_URL);
-		JDBC_API_Tester jt = new JDBC_API_Tester(conn);
+		JDBC_API_Tester jt = new JDBC_API_Tester();
+		jt.connect(con_URL);
+		jt.skipMALoutput = (args.length >= 2) ? args[1].equals("-skipMALoutput") : false;
 
 		// run the tests
-		jt.Test_Cautocommit(con_URL);
+		jt.Test_Cautocommit();
 		jt.Test_CisValid();
 		jt.Test_Clargequery();
-		jt.Test_Cmanycon(con_URL);
+		jt.Test_Cmanycon();
 		jt.Test_Creplysize();
 		jt.Test_Csavepoints();
 		jt.Test_Ctransaction();
-		jt.Test_Driver(con_URL);
+		jt.Test_Driver();
 		jt.Test_Dobjects();
 		jt.Test_DBCmetadata();
 		jt.Test_EmptySql();
 		jt.Test_FetchSize();
 		jt.Test_Int128();
 		jt.Test_Interval_Types();
-		jt.Test_PlanExplainTraceDebugCmds(skipMALoutput);
+		jt.Test_PlanExplainTraceDebugCmds();
 		jt.Test_PSgeneratedkeys();
 		jt.Test_PSgetObject();
 		jt.Test_PSlargebatchval();
-		jt.Test_PSlargeresponse(con_URL);
-		jt.Test_PSmanycon(con_URL);
+		jt.Test_PSlargeresponse();
+		jt.Test_PSmanycon();
 		jt.Test_PSmetadata();
 		jt.Test_PSsetBytes();
 		jt.Test_PSsomeamount();
@@ -126,23 +145,23 @@ public final class JDBC_API_Tester {
 		jt.Test_Smoreresults();
 		jt.Test_Wrapper();
 		if (jt.isPostDec2023)
-			jt.Test_ClientInfo(con_URL);
+			jt.Test_ClientInfo();
 		jt.bogus_auto_generated_keys();
-		jt.BugConcurrent_clients_SF_1504657(con_URL);
-		jt.BugConcurrent_sequences(con_URL);
-		jt.Bug_Connect_as_voc_getMetaData_Failure_Bug_6388(con_URL);
+		jt.BugConcurrent_clients_SF_1504657();
+		jt.BugConcurrent_sequences();
+		jt.Bug_Connect_as_voc_getMetaData_Failure_Bug_6388();
 		jt.BugDatabaseMetaData_Bug_3356();
 		jt.BugDecimalRound_Bug_3561();
 		jt.BugExecuteUpdate_Bug_3350();
-		jt.Bug_IsValid_Timeout_Bug_6782(con_URL);
-		jt.Bug_LargeQueries_6571_6693(con_URL);
+		jt.Bug_IsValid_Timeout_Bug_6782();
+		jt.Bug_LargeQueries_6571_6693();
 		jt.Bug_PrepStmtManyParams_7337(480);
 		jt.Bug_PrepStmtSetObject_CLOB_6349();
 		jt.Bug_PrepStmtSetString_6382();
 		jt.Bug_PrepStmt_With_Errors_Jira292();
 		jt.BugResultSetMetaData_Bug_6183();
 		jt.BugSetQueryTimeout_Bug_3357();
-		jt.SQLcopyinto(con_URL);
+		jt.SQLcopyinto();
 		jt.DecimalPrecisionAndScale();
 
 		/* run next long running test (11 minutes) only before a new release */
@@ -168,7 +187,13 @@ public final class JDBC_API_Tester {
 		return (dbmsMajorVersion > major || (dbmsMajorVersion == major && dbmsMinorVersion >= minor));
 	}
 
-	private void Test_Cautocommit(String arg0) {
+	// getter is used by the @EnabledIf attribute on Test_ClientInfo
+	public boolean isPostDec2023() {
+		return isPostDec2023;
+	}
+
+	@Test
+	public void Test_Cautocommit() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Connection con1 = con;
@@ -177,7 +202,7 @@ public final class JDBC_API_Tester {
 		Statement stmt2 = null;
 		ResultSet rs = null;
 		try {
-			con2 = DriverManager.getConnection(arg0);
+			con2 = DriverManager.getConnection(jdbcUrl);
 
 			// >> true: auto commit should be on by default
 			if (con1.getAutoCommit() != true)
@@ -258,7 +283,8 @@ public final class JDBC_API_Tester {
 				"7. commit...passed :)\n");
 	}
 
-	private void Test_CisValid() {
+	@Test
+	public void Test_CisValid() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -293,7 +319,8 @@ public final class JDBC_API_Tester {
 				"Validating connection: con.isValid? true");
 	}
 
-	private void Test_Clargequery() {
+	@Test
+	public void Test_Clargequery() {
 		sb.setLength(0);	// clear the output log buffer
 		final String query =
 			"-- When a query larger than the send buffer is being " +
@@ -348,7 +375,8 @@ public final class JDBC_API_Tester {
 				"2. queries processed\n");
 	}
 
-	private void Test_Cmanycon(String arg0) {
+	@Test
+	public void Test_Cmanycon() {
 		sb.setLength(0);	// clear the output log buffer
 
 		final int maxCons = 60;	// default max_clients is 64, 2 connections are already open from this program
@@ -359,7 +387,7 @@ public final class JDBC_API_Tester {
 			sb.append("Establishing Connection ");
 			for (; i <= maxCons; i++) {
 				sb.append(i);
-				Connection conx = DriverManager.getConnection(arg0);
+				Connection conx = DriverManager.getConnection(jdbcUrl);
 				sb.append(",");
 				cons.add(conx);
 
@@ -401,7 +429,8 @@ public final class JDBC_API_Tester {
 			"51, 52, 53, 54, 55, 56, 57, 58, 59, 60, ");
 	}
 
-	private void Test_Creplysize() {
+	@Test
+	public void Test_Creplysize() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt1 = null;
@@ -505,7 +534,8 @@ public final class JDBC_API_Tester {
 			"10. drop... passed\n");
 	}
 
-	private void Test_Csavepoints() {
+	@Test
+	public void Test_Csavepoints() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -633,7 +663,8 @@ public final class JDBC_API_Tester {
 			"10. table 0 items passed");
 	}
 
-	private void Test_Ctransaction() {
+	@Test
+	public void Test_Ctransaction() {
 		sb.setLength(0);	// clear the output log buffer
 
 		try {
@@ -732,11 +763,12 @@ public final class JDBC_API_Tester {
 			"13. commit...failed as expected: COMMIT: not allowed in auto commit mode\n");
 	}
 
-	private void Test_Driver(String con_URL) {
+	@Test
+	public void Test_Driver() {
 		sb.setLength(0);	// clear the output log buffer
 
 		try {
-			listDriverProperties(con_URL);
+			listDriverProperties(jdbcUrl);
 			// also test against monetdbs, this should make tls and cert required.
 			sb.append("getPropertyInfo of jdbc:monetdbs:").append("\n");
 			listDriverProperties("jdbc:monetdbs:");
@@ -815,7 +847,8 @@ public final class JDBC_API_Tester {
 		}
 	}
 
-	private void Test_Dobjects() {
+	@Test
+	public void Test_Dobjects() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -1108,7 +1141,8 @@ public final class JDBC_API_Tester {
 	}
 
 	// same tests as done in clients/odbc/tests/ODBCmetadata.c
-	private void Test_DBCmetadata() {
+	@Test
+	public void Test_DBCmetadata() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -1652,7 +1686,8 @@ public final class JDBC_API_Tester {
 		compareExpectedOutput("Test_DBCmetadata", "");
 	}
 
-	private void Test_EmptySql() {
+	@Test
+	public void Test_EmptySql() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -1788,7 +1823,8 @@ public final class JDBC_API_Tester {
 			"Missing SQL statement\n");
 	}
 
-	private void Test_FetchSize() {
+	@Test
+	public void Test_FetchSize() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -1819,7 +1855,8 @@ public final class JDBC_API_Tester {
 			"ResultSet fetch size after set: 16384\n");
 	}
 
-	private void Test_Int128() {
+	@Test
+	public void Test_Int128() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -1903,7 +1940,8 @@ public final class JDBC_API_Tester {
 			"SUCCESS\n");
 	}
 
-	private void Test_Interval_Types() {
+	@Test
+	public void Test_Interval_Types() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -2024,7 +2062,8 @@ public final class JDBC_API_Tester {
 			"ParameterTypeName: interval minute to second	Precision: 15	Scale: 0	ParameterType: 3	ParameterClassName: java.math.BigDecimal\n");
 	}
 
-	private void Test_PlanExplainTraceDebugCmds(boolean skipMALoutput) {
+	@Test
+	public void Test_PlanExplainTraceDebugCmds() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -2148,7 +2187,8 @@ public final class JDBC_API_Tester {
 		closeStmtResSet(stmt, rs);
 	}
 
-	private void Test_PSgeneratedkeys() {
+	@Test
+	public void Test_PSgeneratedkeys() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -2216,7 +2256,8 @@ public final class JDBC_API_Tester {
 			"2. getting generated keys...generated key index: 3\n");
 	}
 
-	private void Test_PSgetObject() {
+	@Test
+	public void Test_PSgetObject() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -2331,7 +2372,8 @@ public final class JDBC_API_Tester {
 			"4. Rollback changes... passed\n");
 	}
 
-	private void Test_PSlargebatchval() {
+	@Test
+	public void Test_PSlargebatchval() {
 		sb.setLength(0);	// clear the output log buffer
 
 		byte[] errorBytes = new byte[] { (byte) 0xe2, (byte) 0x80, (byte) 0xa7 };
@@ -2414,7 +2456,8 @@ public final class JDBC_API_Tester {
 			"7. drop table...success\n");
 	}
 
-	private void Test_PSlargeresponse(String conURL) {
+	@Test
+	public void Test_PSlargeresponse() {
 		sb.setLength(0);	// clear the output log buffer
 
 		PreparedStatement pstmt = null;
@@ -2442,7 +2485,8 @@ public final class JDBC_API_Tester {
 			"2. empty call... passed\n");
 	}
 
-	private void Test_PSmanycon(String arg0) {
+	@Test
+	public void Test_PSmanycon() {
 		sb.setLength(0);	// clear the output log buffer
 
 		final int maxCons = 60;	// default max_clients is 64, 2 connections are already open from this program
@@ -2454,7 +2498,7 @@ public final class JDBC_API_Tester {
 			sb.append("Establishing Connection ");
 			for (; i <= maxCons; i++) {
 				sb.append(i);
-				Connection conx = DriverManager.getConnection(arg0);
+				Connection conx = DriverManager.getConnection(jdbcUrl);
 				sb.append(",");
 
 				// do something with the connection to test if it works
@@ -2489,7 +2533,7 @@ public final class JDBC_API_Tester {
 
 				if (i % 5 == 0) {
 					// inject a failed transaction
-					Connection conZZ = DriverManager.getConnection(arg0);
+					Connection conZZ = DriverManager.getConnection(jdbcUrl);
 					Statement stmt = con.createStatement();
 					try {
 						int affrows = stmt.executeUpdate("update foo where bar is wrong");
@@ -2528,7 +2572,8 @@ public final class JDBC_API_Tester {
 			"56... result: 56, closed. 57... result: 57, closed. 58... result: 58, closed. 59... result: 59, closed. 60... result: 60, closed. Forced transaction failure\n");
 	}
 
-	private void Test_PSmetadata() {
+	@Test
+	public void Test_PSmetadata() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -2744,7 +2789,8 @@ public final class JDBC_API_Tester {
 			"0. true\ttrue\n");
 	}
 
-	private void Test_PSsetBytes() {
+	@Test
+	public void Test_PSsetBytes() {
 		sb.setLength(0);	// clear the output log buffer
 
 		PreparedStatement pstmt = null;
@@ -2888,7 +2934,8 @@ public final class JDBC_API_Tester {
 		return buf.toString();
 	}
 
-	private void Test_PSsomeamount() {
+	@Test
+	public void Test_PSsomeamount() {
 		sb.setLength(0);	// clear the output log buffer
 
 		PreparedStatement pstmt = null;
@@ -2927,7 +2974,9 @@ public final class JDBC_API_Tester {
 
 	/* Create a lot of PreparedStatements, to emulate webloads such as those from Hibernate. */
 	/* this test is same as Test_PSsomeamount() but for many more PreparedStatements to stress the server */
-	private void Test_PSlargeamount() {
+	@Test
+	@Tag("slow")
+	public void Test_PSlargeamount() {
 		sb.setLength(0);	// clear the output log buffer
 
 		PreparedStatement pstmt = null;
@@ -3009,7 +3058,8 @@ public final class JDBC_API_Tester {
 			"50000, true\n");
 	}
 
-	private void Test_PSsqldata() {
+	@Test
+	public void Test_PSsqldata() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -3116,7 +3166,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_PStimedate() {
+	@Test
+	public void Test_PStimedate() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -3207,7 +3258,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_PStimezone() {
+	@Test
+	public void Test_PStimezone() {
 		sb.setLength(0);	// clear the output log buffer
 
 		// make sure this test is reproducible regardless timezone
@@ -3419,7 +3471,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_PStypes() {
+	@Test
+	public void Test_PStypes() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -3495,7 +3548,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_CallableStmt() {
+	@Test
+	public void Test_CallableStmt() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -3676,7 +3730,8 @@ public final class JDBC_API_Tester {
 			"Test completed. Cleanup procedure and table.\n");
 	}
 
-	private void Test_Rbooleans() {
+	@Test
+	public void Test_Rbooleans() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -3767,7 +3822,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_Rmetadata() {
+	@Test
+	public void Test_Rmetadata() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -3966,7 +4022,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_RSgetMetaData() {
+	@Test
+	public void Test_RSgetMetaData() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4164,7 +4221,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_RfetchManyColumnsInfo() {
+	@Test
+	public void Test_RfetchManyColumnsInfo() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4265,7 +4323,8 @@ public final class JDBC_API_Tester {
 			"180 columns start at 1\n");
 	}
 
-	private void Test_Rpositioning() {
+	@Test
+	public void Test_Rpositioning() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4367,7 +4426,8 @@ public final class JDBC_API_Tester {
 			"12. true	true\n");
 	}
 
-	private void Test_Rsqldata() {
+	@Test
+	public void Test_Rsqldata() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4476,7 +4536,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_Rtimedate() {
+	@Test
+	public void Test_Rtimedate() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4693,7 +4754,8 @@ public final class JDBC_API_Tester {
 		rs.clearWarnings();
 	}
 
-	private void Test_Sbatching() {
+	@Test
+	public void Test_Sbatching() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4818,7 +4880,8 @@ public final class JDBC_API_Tester {
 			"0. true	true\n");
 	}
 
-	private void Test_SgeneratedKeys() {
+	@Test
+	public void Test_SgeneratedKeys() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4858,7 +4921,8 @@ public final class JDBC_API_Tester {
 				"ColumnName: GENERATED_KEY ColumnTypeName: bigint Precision: 19 Scale: 0 ColumnDisplaySize: 20 ColumnType: -5 ColumnClassName: java.lang.Long isNullable: 2 isAutoIncrement: false\n");
 	}
 
-	private void Test_Smoreresults() {
+	@Test
+	public void Test_Smoreresults() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -4901,7 +4965,8 @@ public final class JDBC_API_Tester {
 				"4. even more results?... nope :)\n");
 	}
 
-	private void Test_Wrapper() {
+	@Test
+	public void Test_Wrapper() {
 		sb.setLength(0);	// clear the output log buffer
 
 		try {
@@ -5030,7 +5095,8 @@ public final class JDBC_API_Tester {
 		}
 	}
 
-	private void bogus_auto_generated_keys() {
+	@Test
+	public void bogus_auto_generated_keys() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -5112,16 +5178,16 @@ public final class JDBC_API_Tester {
 				"7. drop table...passed\n");
 	}
 
-	private void BugConcurrent_clients_SF_1504657(String arg0) {
+	@Test public void BugConcurrent_clients_SF_1504657() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Connection con1 = null, con2 = null, con3 = null;
 		Statement stmt1 = null, stmt2 = null, stmt3 = null;
 		ResultSet rs1 = null, rs2= null, rs3 = null;
 		try {
-			con1 = DriverManager.getConnection(arg0);
-			con2 = DriverManager.getConnection(arg0);
-			con3 = DriverManager.getConnection(arg0);
+			con1 = DriverManager.getConnection(jdbcUrl);
+			con2 = DriverManager.getConnection(jdbcUrl);
+			con3 = DriverManager.getConnection(jdbcUrl);
 			stmt1 = con1.createStatement();
 			stmt2 = con2.createStatement();
 			stmt3 = con3.createStatement();
@@ -5347,15 +5413,15 @@ public final class JDBC_API_Tester {
 				"Cleanup TABLE t1504657\n");
 	}
 
-	private void BugConcurrent_sequences(String arg0) {
+	@Test public void BugConcurrent_sequences() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Connection con1 = null, con2 = null;
 		Statement stmt1 = null, stmt2 = null;
 		ResultSet rs1 = null, rs2 = null;
 		try {
-			con1 = DriverManager.getConnection(arg0);
-			con2 = DriverManager.getConnection(arg0);
+			con1 = DriverManager.getConnection(jdbcUrl);
+			con2 = DriverManager.getConnection(jdbcUrl);
 			stmt1 = con1.createStatement();
 			stmt2 = con2.createStatement();
 
@@ -5442,8 +5508,8 @@ public final class JDBC_API_Tester {
 			sb.append("x. Reconnecting client 1 and 2... ");
 			con1.close();
 			con2.close();
-			con1 = DriverManager.getConnection(arg0);
-			con2 = DriverManager.getConnection(arg0);
+			con1 = DriverManager.getConnection(jdbcUrl);
+			con2 = DriverManager.getConnection(jdbcUrl);
 			stmt1 = con1.createStatement();
 			stmt2 = con2.createStatement();
 			sb.append("passed :)\n");
@@ -5511,7 +5577,8 @@ public final class JDBC_API_Tester {
 				"Cleanup TABLE tconc_seq\n");
 	}
 
-	private void Bug_Connect_as_voc_getMetaData_Failure_Bug_6388(String arg0) {
+	@Test
+	public void Bug_Connect_as_voc_getMetaData_Failure_Bug_6388() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt1 = null;
@@ -5533,7 +5600,7 @@ public final class JDBC_API_Tester {
 		ResultSet rs2 = null;
 		try {
 			sb.append("4.1. connect as user: voc\n");
-			con2 = DriverManager.getConnection(arg0.replace("=monetdb", "=voc"));
+			con2 = DriverManager.getConnection(jdbcUrl.replace("=monetdb", "=voc"));
 			sb.append("connected :)\n");
 
 			DatabaseMetaData dbmd = con2.getMetaData();
@@ -5656,7 +5723,8 @@ public final class JDBC_API_Tester {
 				"cleanup succeeded :)\n");
 	}
 
-	private void BugDatabaseMetaData_Bug_3356() {
+	@Test
+	public void BugDatabaseMetaData_Bug_3356() {
 		sb.setLength(0);	// clear the output log buffer
 
 		ResultSet rs = null;
@@ -5685,7 +5753,8 @@ public final class JDBC_API_Tester {
 				"YES\n");
 	}
 
-	private void BugDecimalRound_Bug_3561() {
+	@Test
+	public void BugDecimalRound_Bug_3561() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt1 = null;
@@ -5762,7 +5831,8 @@ public final class JDBC_API_Tester {
 				"null\n");
 	}
 
-	private void BugExecuteUpdate_Bug_3350() {
+	@Test
+	public void BugExecuteUpdate_Bug_3350() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -5831,13 +5901,14 @@ public final class JDBC_API_Tester {
 		}
 	}
 
-	private void Bug_IsValid_Timeout_Bug_6782(String arg0) {
+	@Test
+	public void Bug_IsValid_Timeout_Bug_6782() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Connection con2 = null;
 		Statement st = null;
 		try {
-			con2 = DriverManager.getConnection(arg0);
+			con2 = DriverManager.getConnection(jdbcUrl);
 			sb.append("connected :)\n");
 
 			st = con2.createStatement();
@@ -5872,7 +5943,8 @@ public final class JDBC_API_Tester {
 				"getQueryTimeout must give 7: 7\n");
 	}
 
-	private void Bug_LargeQueries_6571_6693(String arg0) {
+	@Test
+	public void Bug_LargeQueries_6571_6693() {
 		sb.setLength(0);	// clear the output log buffer
 
 		// construct a largedata string value. It must larger than the block size of MapiSocket
@@ -5905,7 +5977,7 @@ public final class JDBC_API_Tester {
 
 		final int script_iterations = 10;
 		try {
-			run_tests(arg0, tbl_nm, script_iterations, largedata);
+			run_tests(jdbcUrl, tbl_nm, script_iterations, largedata);
 		} catch (SQLException se) {
 			sb.append(se.getMessage()).append("\n");
 		}
@@ -6028,7 +6100,8 @@ public final class JDBC_API_Tester {
 			sb.append(updates + "!=" + expectedUpdates + " ");
 	}
 
-	private void Bug_PrepStmtSetObject_CLOB_6349() {
+	@Test
+	public void Bug_PrepStmtSetObject_CLOB_6349() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -6078,7 +6151,8 @@ public final class JDBC_API_Tester {
 				"Table dropped\n");
 	}
 
-	private void Bug_PrepStmtSetString_6382() {
+	@Test
+	public void Bug_PrepStmtSetString_6382() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -6322,7 +6396,8 @@ public final class JDBC_API_Tester {
 				"Cleanup TABLE PrepStmtSetString_6382\n");
 	}
 
-	private void Bug_PrepStmt_With_Errors_Jira292() {
+	@Test
+	public void Bug_PrepStmt_With_Errors_Jira292() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -6423,7 +6498,8 @@ public final class JDBC_API_Tester {
 				"5. normal end of test\n");
 	}
 
-	private void BugResultSetMetaData_Bug_6183() {
+	@Test
+	public void BugResultSetMetaData_Bug_6183() {
 		sb.setLength(0);	// clear the output log buffer
 
 		final String dqTblName = "\"my dq_table\"";
@@ -6715,7 +6791,8 @@ public final class JDBC_API_Tester {
 		sb.append("Listed ").append(row_count).append(" rows\n");
 	}
 
-	private void BugSetQueryTimeout_Bug_3357() {
+	@Test
+	public void BugSetQueryTimeout_Bug_3357() {
 		sb.setLength(0);	// clear the output log buffer
 
 		int originalQueryTimeout = 0;
@@ -7026,7 +7103,8 @@ public final class JDBC_API_Tester {
 	 *
 	 * @author Fabian Groffen, Martin van Dinther
 	 */
-	private void SQLcopyinto(final String conn_URL) {
+	@Test
+	public void SQLcopyinto() {
 		sb.setLength(0);	// clear the output log buffer
 
 		final String tablenm = "exampleSQLCopyInto";
@@ -7036,7 +7114,7 @@ public final class JDBC_API_Tester {
 			stmt = con.createStatement();
 			stmt.execute("CREATE TABLE IF NOT EXISTS " + tablenm + " (id int, val varchar(24))");
 
-			fillTableUsingCopyIntoSTDIN(conn_URL, tablenm);
+			fillTableUsingCopyIntoSTDIN(jdbcUrl, tablenm);
 
 			// check content of the table populated via COPY INTO ... FROM STDIN
 			sb.append("Listing uploaded data:\n");
@@ -7145,7 +7223,8 @@ public final class JDBC_API_Tester {
 		sb.append("CopyInto STDIN end\n");
 	}
 
-	private void DecimalPrecisionAndScale() {
+	@Test
+	public void DecimalPrecisionAndScale() {
 		sb.setLength(0);	// clear the output log buffer
 
 		Statement stmt = null;
@@ -7237,10 +7316,9 @@ public final class JDBC_API_Tester {
 				"\n");
 	}
 
-	private void Test_ClientInfo(String con_URL) {
-		if (!isPostDec2023)
-			return;
-
+	@Test
+	@EnabledIf("isPostDec2023")
+	public void Test_ClientInfo() {
 		sb.setLength(0);
 
 		final String[] known = {
@@ -7249,7 +7327,7 @@ public final class JDBC_API_Tester {
 
 		try {
 			sb.append("Connecting\n");
-			try (Connection conn = DriverManager.getConnection(con_URL)) {
+			try (Connection conn = DriverManager.getConnection(jdbcUrl)) {
 
 				// Server metadata includes list of supported clientinfo properties
 				sb.append("Fetching supported clientinfo properties\n");
