@@ -1,0 +1,70 @@
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright 2024, 2025 MonetDB Foundation;
+ * Copyright August 2008 - 2023 MonetDB B.V.;
+ * Copyright 1997 - July 2008 CWI.
+ */
+package org.monetdb.jdbc;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.monetdb.testinfra.Config;
+import org.monetdb.testinfra.MonetVersionNumber;
+
+import java.sql.*;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public abstract class AbstractOnClientTests {
+	protected MonetVersionNumber monetVersion;
+	MonetConnection conn;
+	Statement stmt;
+
+	@BeforeAll
+	public static void checkConnection() throws SQLException {
+		DriverManager.getConnection(Config.getServerURL()).close();
+	}
+
+	@BeforeEach
+	public void setUp() throws SQLException {
+		Connection c = DriverManager.getConnection(Config.getServerURL());
+		conn = c.unwrap(MonetConnection.class);
+		stmt = conn.createStatement();
+		monetVersion = MonetVersionNumber.retrieve(conn);
+		stmt.execute("DROP TABLE IF EXISTS foo; CREATE TABLE foo(i INT, t TEXT)");
+	}
+
+	@AfterEach
+	public void tearDown() {
+		try {
+			stmt.close();
+		} catch (SQLException ignored) {
+		}
+		conn.close();
+	}
+
+	String queryString(String query) throws SQLException {
+		try (ResultSet rs = stmt.executeQuery(query)) {
+			assertTrue(rs.next(), "query should return a single row");
+			String result = rs.getString(1);
+			assertFalse(rs.next(), "query should return a single row");
+			return result;
+		}
+	}
+
+	int queryInt(String query) throws SQLException {
+		try (ResultSet rs = stmt.executeQuery(query)) {
+			assertTrue(rs.next(), "query should return a single row");
+			int result = rs.getInt(1);
+			assertFalse(rs.next(), "query should return a single row");
+			return result;
+		}
+	}
+}
