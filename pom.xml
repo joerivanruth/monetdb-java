@@ -11,39 +11,39 @@
     <name>MonetDB JDBC Driver</name>
     <description>JDBC Driver for MonetDB, a fast relational database for analytics</description>
 
-  <licenses>
-    <license>
-      <name>Mozilla Public License, Version 2.0</name>
-      <url>https://www.mozilla.org/MPL/2.0/</url>
-    </license>
-  </licenses>
+    <licenses>
+        <license>
+            <name>Mozilla Public License, Version 2.0</name>
+            <url>https://www.mozilla.org/MPL/2.0/</url>
+        </license>
+    </licenses>
 
-  <developers>
-    <developer>
-      <name>Sjoerd Mullender</name>
-      <email>sjoerd@monetdb.org</email>
-      <organization>MonetDB</organization>
-      <organizationUrl>https://www.monetdb.org</organizationUrl>
-    </developer>
-  </developers>
+    <developers>
+        <developer>
+            <name>Sjoerd Mullender</name>
+            <email>sjoerd@monetdb.org</email>
+            <organization>MonetDB</organization>
+            <organizationUrl>https://www.monetdb.org</organizationUrl>
+        </developer>
+    </developers>
 
-  <!-- this needs to be updated! -->
-  <distributionManagement>
-    <snapshotRepository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-    <repository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-    </repository>
-  </distributionManagement>
+    <!-- this needs to be updated! -->
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 
-  <scm>
-    <connection>scm:hg:https://dev.monetdb.org/hg/monetdb-java/</connection>
-    <developerConnection>scm:hg:ssh://hg@dev.monetdb.org/monetdb-java/</developerConnection>
-    <url>https://dev.monetdb.org/hg/monetdb-java/</url>
-  </scm>
+    <scm>
+        <connection>scm:hg:https://dev.monetdb.org/hg/monetdb-java/</connection>
+        <developerConnection>scm:hg:ssh://hg@dev.monetdb.org/monetdb-java/</developerConnection>
+        <url>https://dev.monetdb.org/hg/monetdb-java/</url>
+    </scm>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -83,7 +83,7 @@
     </dependencies>
 
     <build>
-       <resources>
+        <resources>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
@@ -198,8 +198,8 @@
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
-                     <!-- <finalName>jdbctests</finalName> -->
-                     <!-- <appendAssemblyId>false</appendAssemblyId> -->
+                    <!-- <finalName>jdbctests</finalName> -->
+                    <!-- <appendAssemblyId>false</appendAssemblyId> -->
                     <descriptors>
                         <descriptor>src/test/assembly/test-jar-with-deps.xml</descriptor>
                     </descriptors>
@@ -232,7 +232,8 @@
                             <goal>rename</goal>
                         </goals>
                         <configuration>
-                            <sourceFile>${project.build.directory}/${project.build.finalName}-test-jar-with-deps.jar</sourceFile>
+                            <sourceFile>${project.build.directory}/${project.build.finalName}-test-jar-with-deps.jar
+                            </sourceFile>
                             <destinationFile>${project.build.directory}/jdbctests.jar</destinationFile>
                         </configuration>
                     </execution>
