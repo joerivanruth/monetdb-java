@@ -18,6 +18,9 @@ import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import com.github.difflib.DiffUtils;
+import com.github.difflib.UnifiedDiffUtils;
+import com.github.difflib.patch.Patch;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.monetdb.jdbc.MonetConnection;
@@ -7564,47 +7567,28 @@ public final class JDBC_API_Tester {
 			return;
 		}
 		foundDifferences = true;
-		System.err.print("Test '");
-		System.err.print(testname);
+
 		if (!testname.endsWith(")") && !testname.endsWith(";"))
-			System.err.print("()");
-		System.err.println("' produced different output!");
-		int expLen = expected.length();
-		int prodLen = produced.length();
-		if (expLen > 0 && prodLen > 0) {
-			int max_pos = expLen;
-			if (prodLen > max_pos)
-				max_pos = prodLen;
-			int line = 1;
-			int rowpos = 0;
-			for (int pos = 0; pos < max_pos; pos++) {
-				char a = (pos < expLen ? expected.charAt(pos) : '~');
-				char b = (pos < prodLen ? produced.charAt(pos) : '~');
-				if (a == '\n') {
-					line++;
-					rowpos = 0;
-				} else {
-					rowpos++;
-				}
-				if (a != b) {
-					if (pos + 40 < expLen)
-						expLen = pos + 40;
-					if (pos + 40 < prodLen)
-						prodLen = pos + 40;
-					System.err.println("Difference found at line " + line + " position " + rowpos
-						+ ". Expected:\n\"" + expected.substring(pos < expLen ? pos : expLen-1, expLen-1)
-						+ "\"\nFound:\n\"" + produced.substring(pos < prodLen ? pos : prodLen-1, prodLen-1) + "\"");
-					pos = max_pos;
-				}
-			}
+			testname += "()";
+		System.err.println("Test " + testname + " produced different output!");
+
+		List<String> expectedLines = Arrays.asList(expected.split("\n"));
+		List<String> producedLines = Arrays.asList(produced.split("\n"));
+		Patch<String> diff = DiffUtils.diff(expectedLines, producedLines);
+		List<String> unifiedDiff = UnifiedDiffUtils.generateUnifiedDiff("expected", "produced", expectedLines, diff, 3);
+
+		System.err.println("==== Delta ===================");
+		for (String line: unifiedDiff) {
+			System.err.println(line);
 		}
+		System.err.println("==== END =====================");
 		System.err.println();
-		System.err.println("---- Full Output: ------------");
-		System.err.println(sb);
-		System.err.println("---- END ---------------------");
-		System.err.println("---- Expected Output: --------");
-		System.err.println(expected);
-		System.err.println("---- END ---------------------");
+
+		System.err.println("==== Full output =============");
+		System.err.print(produced);
+		if (!produced.endsWith("\n"))
+			System.err.println();
+		System.err.println("==== END =====================");
 		System.err.println();
 	}
 
