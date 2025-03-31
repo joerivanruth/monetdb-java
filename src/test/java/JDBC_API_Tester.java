@@ -23,7 +23,10 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.monetdb.jdbc.MonetConnection;
 import org.monetdb.jdbc.types.INET;
 import org.monetdb.jdbc.types.URL;
+import org.monetdb.testinfra.CloseOnFailure;
 import org.monetdb.testinfra.Config;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * class to test JDBC Driver API methods and behavior of MonetDB server.
@@ -50,6 +53,7 @@ public final class JDBC_API_Tester {
 
 	// Connection state set in connect()
 	private String jdbcUrl;
+	@CloseOnFailure
 	private Connection con;		// main connection shared by all tests
 	private int dbmsMajorVersion;
 	private int dbmsMinorVersion;
@@ -73,10 +77,12 @@ public final class JDBC_API_Tester {
 		isPostDec2023 = versionIsAtLeast(11, 50);
 	}
 
-	@BeforeAll
+	@BeforeEach
 	public void openConnection() throws SQLException {
+		if (con == null || con.isClosed()) {
 		String url = Config.getServerURL();
 		connect(url);
+		}
 	}
 
 	@AfterAll
@@ -84,11 +90,34 @@ public final class JDBC_API_Tester {
 		closeConx(con);
 	}
 
+	@BeforeEach
+	public void clearFoundDifferences() {
+		foundDifferences = false;
+	}
+
 	@AfterEach
 	public void checkFoundDifferences() {
 		assertFalse(foundDifferences);
 	}
 
+	@AfterEach
+	public void betweenTests() throws SQLException {
+		if (con == null || con.isClosed())
+			return;
+		assertTrue(con.getAutoCommit());
+		if (versionIsAtLeast(11, 52)) {
+			String query = "SELECT 'query_id=' || query_id || '/res_id=' || res_id FROM sys.unclosed_result_sets()";
+			StringBuilder unclosed = new StringBuilder();
+			try (Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+				while (rs.next()) {
+					if (unclosed.length() > 0)
+						unclosed.append(", ");
+					unclosed.append(rs.getString(1));
+				}
+			}
+			assertEquals("", unclosed.toString(), "this test forgot to close one or more result sets");
+		}
+	}
 	/**
 	 * main function
 	 * @param args args[0] should contain the connectionURL string, args[1] an optional flag: -skipMALoutput
@@ -2482,8 +2511,9 @@ public final class JDBC_API_Tester {
 			sb.append(" passed\n");
 		} catch (SQLException e) {
 			sb.append("FAILED: ").append(e.getMessage()).append("\n");
+		} finally {
+			closeStmtResSet(pstmt, null);
 		}
-		closeStmtResSet(pstmt, null);
 
 		compareExpectedOutput("Test_PSlargeresponse",
 			"1. DatabaseMetadata environment retrieval... oke\n" +
@@ -7530,56 +7560,52 @@ public final class JDBC_API_Tester {
 
 	private void compareExpectedOutput(String testname, String expected) {
 		final String produced = sb.toString();
-		if (!expected.equals(produced)) {
-			foundDifferences = true;
-			System.err.print("Test '");
-			System.err.print(testname);
-			if (!testname.endsWith(")") && !testname.endsWith(";"))
-				System.err.print("()");
-			System.err.println("' produced different output!");
-			int expLen = expected.length();
-			int prodLen = produced.length();
-			if (expLen > 0 && prodLen > 0) {
-				int max_pos = expLen;
-				if (prodLen > max_pos)
-					max_pos = prodLen;
-				int line = 1;
-				int rowpos = 0;
-				for (int pos = 0; pos < max_pos; pos++) {
-					char a = (pos < expLen ? expected.charAt(pos) : '~');
-					char b = (pos < prodLen ? produced.charAt(pos) : '~');
-					if (a == '\n') {
-						line++;
-						rowpos = 0;
-					} else {
-						rowpos++;
-					}
-					if (a != b) {
-						if (pos + 40 < expLen)
-							expLen = pos + 40;
-						if (pos + 40 < prodLen)
-							prodLen = pos + 40;
-						System.err.println("Difference found at line " + line + " position " + rowpos
-							+ ". Expected:\n\"" + expected.substring(pos < expLen ? pos : expLen-1, expLen-1)
-							+ "\"\nFound:\n\"" + produced.substring(pos < prodLen ? pos : prodLen-1, prodLen-1) + "\"");
-						pos = max_pos;
-					}
+		if (expected.equals(produced)) {
+			return;
+		}
+		foundDifferences = true;
+		System.err.print("Test '");
+		System.err.print(testname);
+		if (!testname.endsWith(")") && !testname.endsWith(";"))
+			System.err.print("()");
+		System.err.println("' produced different output!");
+		int expLen = expected.length();
+		int prodLen = produced.length();
+		if (expLen > 0 && prodLen > 0) {
+			int max_pos = expLen;
+			if (prodLen > max_pos)
+				max_pos = prodLen;
+			int line = 1;
+			int rowpos = 0;
+			for (int pos = 0; pos < max_pos; pos++) {
+				char a = (pos < expLen ? expected.charAt(pos) : '~');
+				char b = (pos < prodLen ? produced.charAt(pos) : '~');
+				if (a == '\n') {
+					line++;
+					rowpos = 0;
+				} else {
+					rowpos++;
+				}
+				if (a != b) {
+					if (pos + 40 < expLen)
+						expLen = pos + 40;
+					if (pos + 40 < prodLen)
+						prodLen = pos + 40;
+					System.err.println("Difference found at line " + line + " position " + rowpos
+						+ ". Expected:\n\"" + expected.substring(pos < expLen ? pos : expLen-1, expLen-1)
+						+ "\"\nFound:\n\"" + produced.substring(pos < prodLen ? pos : prodLen-1, prodLen-1) + "\"");
+					pos = max_pos;
 				}
 			}
-			System.err.println();
-			System.err.println("---- Full Output: ------------");
-			System.err.println(sb);
-			System.err.println("---- END ---------------------");
-			System.err.println("---- Expected Output: --------");
-			System.err.println(expected);
-			System.err.println("---- END ---------------------");
-			System.err.println();
 		}
-		if (sb.length() > sbInitLen) {
-			System.err.println("Test '" + testname
-				+ "' produced output > " + sbInitLen
-				+ " chars! Enlarge sbInitLen to: " + sb.length());
-		}
+		System.err.println();
+		System.err.println("---- Full Output: ------------");
+		System.err.println(sb);
+		System.err.println("---- END ---------------------");
+		System.err.println("---- Expected Output: --------");
+		System.err.println(expected);
+		System.err.println("---- END ---------------------");
+		System.err.println();
 	}
 
 	private void closeConx(Connection cn) {
