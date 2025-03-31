@@ -32,7 +32,7 @@ public class UrlTests {
 		int lineno = 0;
 		int startLine = -1;
 		String section = "";
-		int testinSection = 0;
+		int nrInSection = 0;
 
 		while (true) {
 			String line = reader.readLine();
@@ -48,7 +48,7 @@ public class UrlTests {
 				if (!line.equals("```")) {
 					lines.add(line);
 				} else {
-					String remark = !section.isEmpty() ? " (Test " + ++testinSection + " of: " + section + ")" : "";
+					String remark = !section.isEmpty() ? " (Test " + ++nrInSection + " of section '" + section + "')" : "";
 					ScriptRunner runner = new ScriptRunner(source, startLine, remark, lines.toArray(new String[0]));
 					runners.add(runner);
 					startLine = -1;
@@ -62,7 +62,7 @@ public class UrlTests {
 						line = line.substring(1);
 					} while (line.startsWith("#"));
 					section = line.trim();
-					testinSection = 0;
+					nrInSection = 0;
 				}
 			}
 		}

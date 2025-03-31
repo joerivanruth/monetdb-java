@@ -17,7 +17,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Holds a three-
+ * Extract Monet version from a Monet connection and interpret it
  */
 public class MonetVersionNumber {
 	public final int serverMajor;

@@ -189,7 +189,7 @@
                 </executions>
             </plugin>
 
-            <!-- Generate a jar that includes all dependencies such as Junit.
+            <!-- Generate a tests jar that includes all dependencies such as Junit.
                  The result gets a name like monetdb-jdbc-12.1-SNAPSHOT-test-jar-with-deps.jar.
                  This can be changed by uncommenting the <finalName> and <appendAssemblyId> settings
                  but that causes a warning that cannot be suppressed.
@@ -258,7 +258,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>attach-javadocs</id>
+                        <id>attach-javadoc</id>
                         <goals>
                             <goal>jar</goal>
                         </goals>
@@ -280,8 +280,6 @@
                         <include>**/*Tests.java</include>
                         <include>**/*TestCase.java</include>
                     </includes>
-                    <!-- skip the slow tests by default -->
-                    <groups>!slow</groups>
                 </configuration>
             </plugin>
 
