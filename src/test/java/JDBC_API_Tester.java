@@ -84,6 +84,11 @@ public final class JDBC_API_Tester {
 		closeConx(con);
 	}
 
+	@AfterEach
+	public void checkFoundDifferences() {
+		assertFalse(foundDifferences);
+	}
+
 	/**
 	 * main function
 	 * @param args args[0] should contain the connectionURL string, args[1] an optional flag: -skipMALoutput
