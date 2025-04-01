@@ -22,13 +22,16 @@ import com.github.difflib.DiffUtils;
 import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.Patch;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.monetdb.jdbc.MonetConnection;
 import org.monetdb.jdbc.types.INET;
 import org.monetdb.jdbc.types.URL;
 import org.monetdb.testinfra.CloseOnFailure;
 import org.monetdb.testinfra.Config;
+import org.monetdb.testinfra.MtestLauncher;
 
+import static java.lang.System.exit;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -126,98 +129,32 @@ public final class JDBC_API_Tester {
 	 * @param args args[0] should contain the connectionURL string, args[1] an optional flag: -skipMALoutput
 	 * @throws Exception if a connection or database access error occurs
 	 */
-	public static void main(String[] args) throws Exception {
-		if (args.length < 1) {
-			System.err.println("Error: Missing required connection URL as first startup argument!");
-			System.exit(-1);
+	public static void main(String[] args) {
+		String server = null;
+		boolean verbose = false;
+
+		for (int i = 0; i < args.length; i++) {
+			String arg = args[i];
+			if (arg.equals("-v"))
+				verbose = true;
+			else if (!arg.startsWith("-"))
+				server = arg;
+			else {
+				System.err.println("Invalid flag " + arg);
+				exit(1);
+			}
 		}
 
-		final String con_URL = args[0];
+		MtestLauncher launcher = new MtestLauncher("api");
 
-		// Test this before trying to connect
-		UrlTester.runAllTests();
-
-		JDBC_API_Tester jt = new JDBC_API_Tester();
-		jt.connect(con_URL);
-		jt.skipMALoutput = (args.length >= 2) ? args[1].equals("-skipMALoutput") : false;
-
-		// run the tests
-		jt.Test_Cautocommit();
-		jt.Test_CisValid();
-		jt.Test_Clargequery();
-		jt.Test_Cmanycon();
-		jt.Test_Creplysize();
-		jt.Test_Csavepoints();
-		jt.Test_Ctransaction();
-		jt.Test_Driver();
-		jt.Test_Dobjects();
-		jt.Test_DBCmetadata();
-		jt.Test_EmptySql();
-		jt.Test_FetchSize();
-		jt.Test_Int128();
-		jt.Test_Interval_Types();
-		jt.Test_PlanExplainTraceDebugCmds();
-		jt.Test_PSgeneratedkeys();
-		jt.Test_PSgetObject();
-		jt.Test_PSlargebatchval();
-		jt.Test_PSlargeresponse();
-		jt.Test_PSmanycon();
-		jt.Test_PSmetadata();
-		jt.Test_PSsetBytes();
-		jt.Test_PSsomeamount();
-		jt.Test_PSsqldata();
-		jt.Test_PStimedate();
-		jt.Test_PStimezone();
-		jt.Test_PStypes();
-		jt.Test_CallableStmt();
-		jt.Test_Rbooleans();
-		jt.Test_Rmetadata();
-		jt.Test_RfetchManyColumnsInfo();
-		jt.Test_Rpositioning();
-		jt.Test_Rsqldata();
-		jt.Test_Rtimedate();
-		jt.Test_RSgetMetaData();
-		jt.Test_Sbatching();
-		jt.Test_SgeneratedKeys();
-		jt.Test_Smoreresults();
-		jt.Test_Wrapper();
-		if (jt.isPostDec2023)
-			jt.Test_ClientInfo();
-		jt.bogus_auto_generated_keys();
-		jt.BugConcurrent_clients_SF_1504657();
-		jt.BugConcurrent_sequences();
-		jt.Bug_Connect_as_voc_getMetaData_Failure_Bug_6388();
-		jt.BugDatabaseMetaData_Bug_3356();
-		jt.BugDecimalRound_Bug_3561();
-		jt.BugExecuteUpdate_Bug_3350();
-		jt.Bug_IsValid_Timeout_Bug_6782();
-		jt.Bug_LargeQueries_6571_6693();
-		jt.Bug_PrepStmtManyParams_7337(480);
-		jt.Bug_PrepStmtSetObject_CLOB_6349();
-		jt.Bug_PrepStmtSetString_6382();
-		jt.Bug_PrepStmt_With_Errors_Jira292();
-		jt.BugResultSetMetaData_Bug_6183();
-		jt.BugSetQueryTimeout_Bug_3357();
-		jt.SQLcopyinto();
-		jt.DecimalPrecisionAndScale();
-
-		/* run next long running test (11 minutes) only before a new release */
-	/*	jt.Test_PSlargeamount(); */
-
-		jt.closeConx(jt.con);
-
-		if (jt.foundDifferences)
-			System.exit(-1);
-
-		ConnectionTests.runTests(con_URL);
-
-		// invoke running OnClientTester only on Oct2020 (11.39) or older servers
-		if (!jt.versionIsAtLeast(11,40)) {
-			OnClientTester oct = new OnClientTester(con_URL, 0);
-			int failures = oct.runTests();
-			if (failures > 0)
-				System.exit(-1);
+		launcher.setVerbose(verbose);
+		if (server != null) {
+			launcher.always().println("Command line: setting " + Config.SERVER_URL_PROPERTY + " to " + server);
+			System.setProperty(Config.SERVER_URL_PROPERTY, server);
 		}
+
+		int status = launcher.run();
+		System.exit(status);
 	}
 
 	private boolean versionIsAtLeast(int major, int minor) {
@@ -3014,6 +2951,7 @@ public final class JDBC_API_Tester {
 	/* this test is same as Test_PSsomeamount() but for many more PreparedStatements to stress the server */
 	@Test
 	@Tag("slow")
+	@DisabledIf("org.monetdb.testinfra.Config#getSkipSlow")
 	public void Test_PSlargeamount() {
 		sb.setLength(0);	// clear the output log buffer
 

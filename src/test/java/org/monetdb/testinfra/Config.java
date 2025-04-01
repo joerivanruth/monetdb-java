@@ -43,6 +43,9 @@ public class Config {
 	public static final String SKIP_MALOUTPUT_PROPERTY = "test.skipmaloutput";
 	public static final String SKIP_MALOUTPUT_ENVVAR = "MONETDB_TEST_SKIP_MAL_OUTPUT";
 
+	public static final String SKIP_SLOW_PROPERTY = "test.skipslow";
+	public static final String SKIP_SLOW_ENVVAR = "MONETDB_TEST_SKIP_SLOW";
+
 	private static String lookup(String propName, String envName, String defaultValue) {
 		String value = null;
 		try {
@@ -86,6 +89,10 @@ public class Config {
 
 	public static boolean getSkipMalOutput() {
 		return Boolean.parseBoolean(lookup(SKIP_MALOUTPUT_PROPERTY, SKIP_MALOUTPUT_ENVVAR, "false"));
+	}
+
+	public static boolean getSkipSlow() {
+		return Boolean.parseBoolean(lookup(SKIP_SLOW_PROPERTY, SKIP_SLOW_ENVVAR, "false"));
 	}
 
 	private static String getTLSTester() {

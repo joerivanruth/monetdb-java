@@ -13,7 +13,9 @@ package org.monetdb.jdbc;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.monetdb.jdbc.MonetConnection.UploadHandler;
+import org.monetdb.testinfra.Config;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -225,6 +227,7 @@ public class OnClientTests extends AbstractOnClientTests {
 
 	@Test
 	@Tag("slow")
+	@DisabledIf("org.monetdb.testinfra.Config#getSkipSlow")
 	public void testLargeDownload() throws SQLException {
 		testDownload_(4_000_000);
 	}
@@ -245,6 +248,7 @@ public class OnClientTests extends AbstractOnClientTests {
 
 	@Test
 	@Tag("slow")
+	@DisabledIf("org.monetdb.testinfra.Config#getSkipSlow")
 	public void testLargeUpload() throws SQLException {
 		int n = 4_000_000;
 		MyUploadHandler handler = new MyUploadHandler(n);
