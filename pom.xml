@@ -314,7 +314,9 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <author>false</author>
                     <doclint>none</doclint>
+                    <windowtitle>MonetDB Java APIs</windowtitle>
                 </configuration>
             </plugin>
 
