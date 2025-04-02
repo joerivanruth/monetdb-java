@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.monetdb.testinfra.Assertions.assertSQLException;
 
 @Tag("onclient")
-public class FileTransferHandlerTests extends AbstractOnClientTests {
+public class FileTransferHandlerTests extends OnClientTestsParent {
 
 
 	@Test

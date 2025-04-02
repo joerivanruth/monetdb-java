@@ -22,7 +22,7 @@ import java.sql.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public abstract class AbstractOnClientTests {
+public abstract class OnClientTestsParent {
 	protected MonetVersionNumber monetVersion;
 	MonetConnection conn;
 	Statement stmt;

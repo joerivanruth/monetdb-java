@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.monetdb.jdbc.MonetConnection.UploadHandler;
-import org.monetdb.testinfra.Config;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +27,7 @@ import static org.monetdb.testinfra.Assertions.assertSQLException;
 
 
 @Tag("onclient")
-public class OnClientTests extends AbstractOnClientTests {
+public class OnClientTests extends OnClientTestsParent {
 	@Test
 	public void testUpload() throws SQLException {
 		MyUploadHandler handler = new MyUploadHandler(100);
