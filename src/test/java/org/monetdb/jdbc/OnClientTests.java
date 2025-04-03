@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.monetdb.testinfra.Assertions.assertSQLException;
 
 
-@Tag("onclient")
+@Tag("api")
 public class OnClientTests extends OnClientTestsParent {
 	@Test
 	public void testUpload() throws SQLException {

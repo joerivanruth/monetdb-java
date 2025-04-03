@@ -29,7 +29,7 @@ import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.monetdb.testinfra.Assertions.assertSQLException;
 
-@Tag("onclient")
+@Tag("api")
 public class FileTransferHandlerTests extends OnClientTestsParent {
 
 
