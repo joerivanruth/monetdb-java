@@ -49,10 +49,10 @@ public class MtestLauncher {
 		verbose = enabled ? always : new PrintStream(new DevNull());
 	}
 
-	public PrintStream always() {
+	public PrintStream logAlways() {
 		return always;
 	}
-	public PrintStream verbose() {
+	public PrintStream logVerbose() {
 		return verbose;
 	}
 

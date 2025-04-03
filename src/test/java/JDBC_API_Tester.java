@@ -29,9 +29,7 @@ import org.monetdb.jdbc.types.INET;
 import org.monetdb.jdbc.types.URL;
 import org.monetdb.testinfra.CloseOnFailure;
 import org.monetdb.testinfra.Config;
-import org.monetdb.testinfra.MtestLauncher;
 
-import static java.lang.System.exit;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -51,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("api")
-public final class JDBC_API_Tester {
+public final class JDBC_API_Tester extends JUnitTester {
 	// This is where we gather test output which is then verified
 	// in compareExpectedOutput()
 	private StringBuilder sb = new StringBuilder(sbInitLen);
@@ -70,6 +68,10 @@ public final class JDBC_API_Tester {
 
 	JDBC_API_Tester() {
 		sb = new StringBuilder(sbInitLen);
+	}
+
+	public static void main(String[] args) {
+		runTests("api&!slow", Config.SERVER_URL_PROPERTY, args);
 	}
 
 	private void connect(String url) throws SQLException {
@@ -123,38 +125,6 @@ public final class JDBC_API_Tester {
 			}
 			assertEquals("", unclosed.toString(), "this test forgot to close one or more result sets");
 		}
-	}
-	/**
-	 * main function
-	 * @param args args[0] should contain the connectionURL string, args[1] an optional flag: -skipMALoutput
-	 * @throws Exception if a connection or database access error occurs
-	 */
-	public static void main(String[] args) {
-		String server = null;
-		boolean verbose = false;
-
-		for (int i = 0; i < args.length; i++) {
-			String arg = args[i];
-			if (arg.equals("-v"))
-				verbose = true;
-			else if (!arg.startsWith("-"))
-				server = arg;
-			else {
-				System.err.println("Invalid flag " + arg);
-				exit(1);
-			}
-		}
-
-		MtestLauncher launcher = new MtestLauncher("api");
-
-		launcher.setVerbose(verbose);
-		if (server != null) {
-			launcher.always().println("Command line: setting " + Config.SERVER_URL_PROPERTY + " to " + server);
-			System.setProperty(Config.SERVER_URL_PROPERTY, server);
-		}
-
-		int status = launcher.run();
-		System.exit(status);
 	}
 
 	private boolean versionIsAtLeast(int major, int minor) {
