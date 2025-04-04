@@ -1,0 +1,174 @@
+# This workflow builds the jdbc jar on Linux and tries to run the tests on
+# Linux, macOS and Windows.
+
+name: test jars
+
+on:
+  push:
+
+jobs:
+
+  # This job builds the jars for use by the other jobs.
+  # It quickly tests against MonetDB and tlstester instances running in a container.
+  build_jar:
+    runs-on: ubuntu-latest
+    env:
+      MONETDB_TLSTESTER: localhost:4300
+    steps:
+
+      - uses: actions/checkout@v4
+
+      # Skip all other steps if pom.xml and src/ haven't changed.
+      # You can increment the xyz component of the cache key to invalidate
+      # any existing cache and run everything anew.
+      - name: Cache the whole job
+        uses: actions/cache@v4
+        id: cache-all
+        with:
+          path: jars
+          key: xyz6-${{ runner.os }}-${{ hashFiles('src', 'pom.xml') }}
+
+      # We start the containers manually rather than using GitHub's Service
+      # Container feature because we don't want to spend time starting the
+      # containers if job 'cache-all' above already has everything cached.
+      - name: Start containers
+        if: (!steps.cache-all.outputs.cache-hit)
+        run: |
+          docker run -d -e MDB_DB_ADMIN_PASS=monetdb -e MDB_CREATE_DBS=jdbctest -p 50000:50000 docker.io/monetdb/dev-builds:Aug2024
+          docker run -d -e TLSTEST_DOMAIN=localhost -p 4300-4350:4300-4350 docker.io/monetdb/tlstester:0.3.1
+
+      - name: Cache Maven downloads
+        if: (!steps.cache-all.outputs.cache-hit)
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - uses: actions/setup-java@v4
+        if: (!steps.cache-all.outputs.cache-hit)
+        with:
+          java-version: 24
+          distribution: oracle
+
+      - name: Build and test
+        if: (!steps.cache-all.outputs.cache-hit)
+        run: ./mvnw --no-transfer-progress package -Dgroups='!slow'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jars
+          path: jars
+          retention-days: 1
+
+
+
+
+  # This job tests the jars on various platforms, always against the latest
+  # MonetDB because MonetDB/install-monetdb@0.8 can only fairly recent versions.
+  platform:
+    needs: build_jar
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        java:   # not sure, let's test with 8 and the latest
+          - 8
+          - 24
+        include:
+          # override java-dist only for java 8
+          - java: 8
+            java-dist: liberica
+    runs-on: ${{ matrix.os }}
+    steps:
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: ${{ matrix.java-dist || 'oracle' }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: jars
+          path: jars
+
+      - run: ls -lh jars
+        shell: bash
+
+      - uses: MonetDB/install-monetdb@v0.8
+        with:
+          version: Latest
+
+      - name: Run tests
+        run: |
+          java -cp jars/'*' JDBC_API_Tester -v jdbc:monetdb:///demo
+
+
+
+
+  oldmonetdb:
+    needs: build_jar
+    strategy:
+      fail-fast: false
+      matrix:
+        monetdb:
+          - Jan2022
+          - Sep2022
+          - Jun2023
+          - Dec2023
+          - Aug2024
+#          - default
+    runs-on: ubuntu-latest
+    services:
+      monetdb:
+        image: monetdb/dev-builds:${{ matrix.monetdb }}
+        env:
+          MDB_DAEMON_PASS: monetdb
+          MDB_DB_ADMIN_PASS: monetdb
+          MDB_CREATE_DBS: jdbctest
+        ports:
+          - 50000:50000
+      tlstester:
+        image: monetdb/tlstester:0.3.1
+        env:
+          TLSTEST_DOMAIN: localhost
+        ports:
+          - 4300-4350:4300-4350
+    env:
+      MONETDB_TLSTESTER: localhost:4300
+    steps:
+
+      - uses: actions/checkout@v4
+
+      # Not sure what makes most sense here...
+      # test old MonetDB versions with an old Java version
+      # or with a newer one
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 24
+          distribution: oracle
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: jars
+          path: jars
+
+      - run: ls -lh jars
+        shell: bash
+
+      - name: API Tests
+        run: |
+          java -cp jars/'*' JDBC_API_Tester -v jdbc:monetdb:///jdbctest
+
+      - name: TLS Tests
+        run: |
+          java -cp jars/'*' TLSTester -v $MONETDB_TLSTESTER
+
+      - name: Slow Tests
+        if: false
+        run: |
+          java -cp jars/'*' SlowTester -v jdbc:monetdb:///jdbctest
