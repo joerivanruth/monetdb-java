@@ -114,7 +114,7 @@ public class ConnectionTests {
 	}
 
 	@Test
-	public void testAutocloseable() throws SQLException {
+	public void testAutocloseable() throws SQLException, InterruptedException {
 		try (Connection conn1 = connect()) {
 			int session1 = selectInt(conn1, "SELECT current_sessionid()");
 			int session2;
@@ -122,6 +122,7 @@ public class ConnectionTests {
 				session2 = selectInt(conn2, "SELECT current_sessionid()");
 				assertNotEquals(session1, session2);
 			}
+			Thread.sleep(300);
 			int session2count = selectInt(conn1, "SELECT COUNT(*) FROM sys.sessions WHERE sessionid = " + session2);
 			assertEquals(0, session2count);
 		}
